@@ -1,0 +1,226 @@
+---
+title: "Estado da arte da publicação sobre ácaros em cultivos de citros no Brasil."
+author: "Edgar L de Lima"
+date: "15/03/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Análise cienciométrica da produção ciêntífica sobre ácaros em cultivos de citros no Brasil. Os dados foram coletados no Web of Science e Scopus. Foram realizadas análises descritivas utilizando as variáveis listadas abaixo:
+
+1. Ano de publicação do artigo.
+2. Família.
+3. Gênero.
+4. Microhábitat.
+5. Guilda alimentar.
+6. Sistema de cultivo agrícola.
+7. Bioma em que o estudo foi realizado.
+
+# Difenindo diretório, carragando pacotes e os dados que serão utilizados
+```{r}
+setwd("C:\\Users\\Edgar\\Documents\\Consultorias\\Stefany")
+library("ggplot2")
+library("tidyverse")
+library("readxl")
+dados<-read_excel("citrus2.xlsx", sheet = "analise")
+View(dados)
+```
+
+
+# Preparação dos dados
+Retirando as colunas que não são de interesse.
+```{r}
+dados2<- dados%>% select(-c("Data", "Lat", "Long",
+                           "Local", "Cidade", "Estado",
+                           "Bioma dos artigos","Reference", "Published" ))
+
+ano<-dados2$Citacao%>%str_remove_all("\\D")
+View(dados2)
+```
+
+Organizando os dados para construção do gráfico de padrão temporal de publicações.
+```{r}
+dados2<- mutate(dados2, ano= ano)
+dados2$ano<-as.numeric(ano)
+tempo<- dados2[,c(16,14)]
+tempo<-tempo%>% group_by(ano) %>% distinct(Artigo, .keep_all = TRUE)
+tempo<-data.frame(table(tempo$ano))
+tempo$Var1<-as.numeric(as.numeric_version(tempo$Var1))
+```
+
+Organizando os dados para construir os gráficos de número de estudos para cada um dos parâmetros abaixo.
+```{r}
+familia<-dados2[,c(1,14)]
+familia<-familia%>%group_by(Artigo)%>% distinct(Familia, .keep_all = TRUE)
+familia<-data.frame(table(familia$Familia))
+View(familia)
+
+genero<-dados2[,c(2,14)]
+genero<-genero%>%group_by(Artigo)%>% distinct(Genero, .keep_all = TRUE)
+genero<-data.frame(table(genero$Genero))
+genero<- genero[-which(genero$Var1=="Imaturo"|genero$Var1== "Imaturos"),]
+View(genero)
+
+dados2$Microhabit<-dados2$Microhabit%>% str_replace_all( "Furto", "Fruto")%>%
+  str_replace_all( "Fruta", "Fruto")%>% str_replace_all( "Ramo/Folha/Fruto",
+                                                         "Folha/Fruto/Ramo")
+dados2[dados2$Microhabit%>%str_which("Obs\\D"),5 ]<- "Fruto"
+micro<-dados2[,c(5,14)]
+micro<-micro%>%group_by(Artigo)%>% distinct(Microhabit, .keep_all = TRUE)
+micro<- data.frame(table(micro$Microhabit))
+View(micro)
+
+
+guilda<-dados2[,c(11,14)]
+guilda<-guilda%>%group_by(Artigo)%>% distinct(Guilda_acaro, .keep_all = TRUE)
+guilda<- data.frame(table(guilda$Guilda_acaro))
+View(guilda)
+
+sistema<-dados2[,c(12,14)]
+sistema<-sistema%>%group_by(Artigo)%>% distinct(`Sistema agrícola`, .keep_all = TRUE)
+sistema<- data.frame(table(sistema$`Sistema agrícola`))
+View(sistema)
+
+dados2$`Biomas pesquisados`<-dados2$`Biomas pesquisados`%>% 
+  str_replace_all( "Mata Atlantica", "Mata Atlântica")
+bioma<-dados2[,c(13,14)]
+bioma<-bioma%>%group_by(Artigo)%>% distinct(`Biomas pesquisados`, .keep_all = TRUE)
+bioma<- data.frame(table(bioma$`Biomas pesquisados`))
+View(bioma)
+```
+
+# Construíndo os gráficos para cada um dos parêmetros.
+
+Gráfico com a tendência temporal de publicações.
+```{r}
+ggplot(tempo, aes(x=Var1, y= Freq))+
+  geom_line()+
+  geom_point(size= 3)+
+  scale_x_continuous(limits = c(1980,2020), breaks = seq(0,2020,1))+
+  scale_y_continuous(limits = c(0,9), breaks = seq(0,9,1))+
+  xlab("Ano") + 
+  ylab("Número de estudos")+
+  theme_bw()+
+  theme(panel.grid = element_blank(),
+        axis.title = element_text(size = 18, colour = "black"),
+        axis.text.x = element_text(size = 12, colour = "black"),
+        axis.text.y = element_text(size = 14, colour = "black"),
+        panel.border = element_rect(size= 1.2))
+ggsave(filename = "ptemporal.tiff", width = 45, 
+         height = 22, units = "cm", dpi = 200)
+
+```
+
+
+Gráfico indicando o número de estudos em que cada uma das famílias encontradas.
+```{r}
+ggplot(familia, aes(Var1, Freq))+
+  geom_bar(stat = "identity", fill= "Black")+
+  coord_flip()+
+  scale_y_continuous(limits = c(0,70), breaks = seq(0,70,10))+
+  xlab("Famílias") + 
+  ylab("Número de estudos")+
+  theme_bw()+
+  theme(panel.grid = element_blank(),
+        axis.title = element_text(size = 18, colour = "black"),
+        axis.text = element_text(size = 14, colour = "black"),
+        panel.border = element_rect(size= 1.2))
+  ggsave(filename = "familias.tiff", width = 31, 
+         height = 22, units = "cm", dpi = 200)
+```
+
+
+Gráfico indicando o número de estudos em que cada uma dos gêneros encontrados.
+```{r}
+ggplot(genero, aes(Var1, Freq))+
+  geom_bar(stat = "identity", fill= "Black")+
+  coord_flip()+
+  scale_y_continuous(limits = c(0,65), breaks = seq(0,65,2))+
+  xlab("Gêneros") + 
+  ylab("Número de estudos")+
+  theme_bw()+
+  theme(panel.grid = element_blank(),
+        axis.title = element_text(size = 18, colour = "black"),
+        axis.text = element_text(size = 14, colour = "black"),
+        panel.border = element_rect(size= 1.2))
+ggsave(filename = "genero.tiff", width = 31, 
+         height = 30, units = "cm", dpi = 200)
+
+```
+
+Gráfico indicando o número de estudos em que diferentes microhábitats foram utilizados.
+```{r}
+ggplot(micro, aes(Var1, Freq))+
+  geom_bar(stat = "identity", fill= "Black")+
+  coord_flip()+
+  scale_y_continuous(limits = c(0,50), breaks = seq(0,50,2))+
+  xlab("Microhábitat") + 
+  ylab("Número de estudos")+
+  theme_bw()+
+  theme(panel.grid = element_blank(),
+        axis.title = element_text(size = 18, colour = "black"),
+        axis.text = element_text(size = 14, colour = "black"),
+        panel.border = element_rect(size= 1.2))
+ggsave(filename = "Microhabitat.tiff", width = 31, 
+         height = 25, units = "cm", dpi = 200)
+
+```
+
+
+Gráfico indicando o número de estudos em que diferentes guildas foram coletadas.
+```{r}
+ggplot(guilda, aes(Var1, Freq))+
+  geom_bar(stat = "identity", fill= "Black", width = .40)+
+  #coord_flip()+
+  scale_y_continuous(limits = c(0,90), breaks = seq(0,90,5))+
+  xlab("Guilda") + 
+  ylab("Número de estudos")+
+  theme_bw()+
+  theme(panel.grid = element_blank(),
+        axis.title = element_text(size = 18, colour = "black"),
+        axis.text = element_text(size = 14, colour = "black"),
+        panel.border = element_rect(size= 1.2))
+ggsave(filename = "Guilda.tiff", width = 31, 
+         height = 25, units = "cm", dpi = 200)
+
+```
+
+
+Gráfico indicando o número de estudos em que ácaros foram coletados em diferentes sistemas de produção agrícola.
+```{r}
+ggplot(sistema, aes(Var1, Freq))+
+  geom_bar(stat = "identity", fill= "Black", width = .40)+
+  #coord_flip()+
+  scale_y_continuous(limits = c(0,70), breaks = seq(0,70,5))+
+  xlab("Sistema agrícola") + 
+  ylab("Número de estudos")+
+  theme_bw()+
+  theme(panel.grid = element_blank(),
+        axis.title = element_text(size = 18, colour = "black"),
+        axis.text = element_text(size = 14, colour = "black"),
+        panel.border = element_rect(size= 1.2))
+ggsave(filename = "Sistema_agricola.tiff", width = 31, 
+         height = 25, units = "cm", dpi = 200)
+```
+
+
+Gráfico indicando o número de estudos em que ácaros foram coletados em diferentes biomas brisileiros.
+```{r}
+ggplot(bioma, aes(Var1, Freq))+
+  geom_bar(stat = "identity", fill= "Black", width = .40)+
+  #coord_flip()+
+  scale_y_continuous(limits = c(0,50), breaks = seq(0,50,5))+
+  xlab("Bioma") + 
+  ylab("Número de estudos")+
+  theme_bw()+
+  theme(panel.grid = element_blank(),
+        axis.title = element_text(size = 18, colour = "black"),
+        axis.text = element_text(size = 14, colour = "black"),
+        panel.border = element_rect(size= 1.2))
+ggsave(filename = "Bioma.tiff", width = 31, 
+         height = 25, units = "cm", dpi = 200)
+```
+
+
+
